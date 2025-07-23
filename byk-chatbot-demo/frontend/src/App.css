@@ -1,0 +1,51 @@
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.App > .container {
+  flex: 1;
+}
+
+/* チャットインターフェースのスタイル */
+.chat-container {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.messages-container {
+  min-height: 400px;
+  max-height: 500px;
+  padding: 1rem;
+}
+
+.message-bubble {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  word-wrap: break-word;
+}
+
+.message-wrapper.text-end .message-bubble {
+  margin-left: auto;
+}
+
+/* ファイルアイコンのカラー */
+.fa-file-pdf {
+  color: #dc3545;
+}
+
+.fa-file-word {
+  color: #0066cc;
+}
+
+/* ハイライトされたテキスト */
+mark {
+  background-color: #fff3cd;
+  padding: 0.1em 0.2em;
+}
+
+/* レスポンシブ調整 */
+@media (max-width: 768px) {
+  .message-bubble {
+    max-width: 90% !important;
+  }
+}

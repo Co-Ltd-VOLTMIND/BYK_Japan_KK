@@ -1,0 +1,56 @@
+services:
+  # バックエンドサービス
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: byk-chatbot-backend
+    ports:
+      - "5001:5000"
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_PATH=/app/database/chatbot.db
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      # ソースコードの変更を反映（開発時）
+      - ./backend:/app
+      - /app/node_modules
+      # データの永続化
+      - ./backend/uploads:/app/uploads
+      - ./backend/database:/app/database
+    networks:
+      - chatbot-network
+    restart: unless-stopped
+
+  # フロントエンドサービス
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: byk-chatbot-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5001/api
+      - WATCHPACK_POLLING=true
+    volumes:
+      # ソースコードの変更を反映（開発時）
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - chatbot-network
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+networks:
+  chatbot-network:
+    driver: bridge
+
+volumes:
+  uploads:
+  database: 
