@@ -1,17 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Container, 
-  Row, 
-  Col, 
-  Form, 
-  Button, 
-  Card, 
+import {
+  Box,
+  Container,
+  Flex,
+  Input,
+  Button,
+  Text,
+  VStack,
+  HStack,
   Alert,
+  AlertIcon,
   Spinner,
-  Badge
-} from 'react-bootstrap';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane, faFile, faRobot, faUser } from '@fortawesome/free-solid-svg-icons';
+  Badge,
+  Avatar,
+  InputGroup,
+  InputRightElement,
+  IconButton,
+  useToast,
+  Card,
+  CardBody
+} from '@chakra-ui/react';
+import { ChatIcon, AttachmentIcon } from '@chakra-ui/icons';
 import { chatAPI } from '../services/api';
 
 const ChatInterface = () => {
@@ -20,6 +29,7 @@ const ChatInterface = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
+  const toast = useToast();
 
   // 初期メッセージ
   useEffect(() => {
@@ -84,128 +94,134 @@ const ChatInterface = () => {
   };
 
   return (
-    <Container fluid className="chat-interface">
+    <Box>
       {error && (
-        <Alert variant="danger" dismissible onClose={() => setError(null)}>
+        <Alert status="error" mb={4} borderRadius="md">
+          <AlertIcon />
           {error}
         </Alert>
       )}
 
-      <Card className="chat-container" style={{ height: '600px' }}>
-        <Card.Body className="d-flex flex-column">
-          <div className="messages-container flex-grow-1 overflow-auto mb-3">
+      <Card height="600px" overflow="hidden">
+        <CardBody display="flex" flexDirection="column" p={0}>
+          <VStack
+            flex="1"
+            overflowY="auto"
+            spacing={4}
+            p={4}
+            align="stretch"
+          >
             {messages.map((message) => (
-              <div
+              <Flex
                 key={message.id}
-                className={`message-wrapper mb-3 ${
-                  message.type === 'user' ? 'text-end' : 'text-start'
-                }`}
+                justify={message.type === 'user' ? 'flex-end' : 'flex-start'}
               >
-                <div
-                  className={`message-bubble d-inline-block p-3 rounded ${
-                    message.type === 'user' 
-                      ? 'bg-primary text-white' 
-                      : 'bg-light text-dark'
-                  }`}
-                  style={{ maxWidth: '70%' }}
+                <HStack
+                  maxW="70%"
+                  bg={message.type === 'user' ? 'blue.500' : 'gray.100'}
+                  color={message.type === 'user' ? 'white' : 'gray.800'}
+                  p={4}
+                  borderRadius="lg"
+                  spacing={3}
+                  align="start"
                 >
-                  <div className="d-flex align-items-center mb-2">
-                    <FontAwesomeIcon 
-                      icon={message.type === 'user' ? faUser : faRobot} 
-                      className="me-2"
-                    />
-                    <small className="text-muted">
+                  <Avatar
+                    size="sm"
+                    icon={message.type === 'user' ? <ChatIcon /> : <ChatIcon />}
+                    bg={message.type === 'user' ? 'blue.600' : 'gray.300'}
+                  />
+                  <VStack align="start" spacing={2}>
+                    <Text fontSize="xs" opacity={0.8}>
                       {formatTimestamp(message.timestamp)}
-                    </small>
-                  </div>
-                  <div className="message-content">
-                    {message.content}
-                  </div>
-                  {message.relatedFiles && message.relatedFiles.length > 0 && (
-                    <div className="related-files mt-3">
-                      <small className="d-block mb-2">関連文書:</small>
-                      {message.relatedFiles.map((file) => (
-                        <Badge 
-                          key={file.id} 
-                          bg="secondary" 
-                          className="me-2 mb-1"
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <FontAwesomeIcon icon={faFile} className="me-1" />
-                          {file.filename}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+                    </Text>
+                    <Text whiteSpace="pre-wrap">{message.content}</Text>
+                    {message.relatedFiles && message.relatedFiles.length > 0 && (
+                      <VStack align="start" spacing={1} mt={2}>
+                        <Text fontSize="sm" fontWeight="bold">関連文書:</Text>
+                        <HStack wrap="wrap" spacing={2}>
+                          {message.relatedFiles.map((file) => (
+                            <Badge
+                              key={file.id}
+                              colorScheme="gray"
+                              cursor="pointer"
+                              p={2}
+                            >
+                              <AttachmentIcon mr={1} />
+                              {file.filename}
+                            </Badge>
+                          ))}
+                        </HStack>
+                      </VStack>
+                    )}
+                  </VStack>
+                </HStack>
+              </Flex>
             ))}
             {isLoading && (
-              <div className="text-center">
-                <Spinner animation="border" size="sm" />
-                <small className="ms-2">回答を生成中...</small>
-              </div>
+              <Flex justify="center" align="center">
+                <Spinner size="sm" mr={2} />
+                <Text fontSize="sm">回答を生成中...</Text>
+              </Flex>
             )}
             <div ref={messagesEndRef} />
-          </div>
+          </VStack>
 
-          <Form onSubmit={handleSubmit}>
-            <Row className="g-2">
-              <Col>
-                <Form.Control
-                  type="text"
+          <Box p={4} borderTop="1px" borderColor="gray.200">
+            <form onSubmit={handleSubmit}>
+              <InputGroup size="lg">
+                <Input
                   placeholder="質問を入力してください..."
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   disabled={isLoading}
+                  pr="4.5rem"
                 />
-              </Col>
-              <Col xs="auto">
-                <Button 
-                  type="submit" 
-                  disabled={isLoading || !inputMessage.trim()}
-                >
-                  <FontAwesomeIcon icon={faPaperPlane} />
-                  {' '}送信
-                </Button>
-              </Col>
-            </Row>
-          </Form>
-        </Card.Body>
+                <InputRightElement width="4.5rem">
+                  <Button
+                    h="1.75rem"
+                    size="sm"
+                    type="submit"
+                    disabled={isLoading || !inputMessage.trim()}
+                    colorScheme="blue"
+                  >
+                    送信
+                  </Button>
+                </InputRightElement>
+              </InputGroup>
+            </form>
+          </Box>
+        </CardBody>
       </Card>
 
-      <Card className="mt-3">
-        <Card.Body>
-          <h6>サンプル質問:</h6>
-          <div className="sample-questions">
-            <Button 
-              variant="outline-secondary" 
-              size="sm" 
-              className="me-2 mb-2"
+      <Card mt={4}>
+        <CardBody>
+          <Text fontWeight="bold" mb={3}>サンプル質問:</Text>
+          <HStack wrap="wrap" spacing={2}>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setInputMessage('海外出張の旅費精算方法を教えてください')}
             >
               海外出張の旅費精算方法を教えてください
             </Button>
-            <Button 
-              variant="outline-secondary" 
-              size="sm" 
-              className="me-2 mb-2"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setInputMessage('分析装置の電源の入れ方は？')}
             >
               分析装置の電源の入れ方は？
             </Button>
-            <Button 
-              variant="outline-secondary" 
-              size="sm" 
-              className="mb-2"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setInputMessage('有給申請の締切はいつですか？')}
             >
               有給申請の締切はいつですか？
             </Button>
-          </div>
-        </Card.Body>
+          </HStack>
+        </CardBody>
       </Card>
-    </Container>
+    </Box>
   );
 };
 

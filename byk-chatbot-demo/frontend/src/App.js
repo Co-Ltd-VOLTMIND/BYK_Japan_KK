@@ -1,14 +1,26 @@
 import React, { useState } from 'react';
-import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
-import { Container, Tab, Tabs } from 'react-bootstrap';
+import {
+  Box,
+  Container,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  Heading,
+  Text,
+  VStack,
+  Flex,
+  useColorModeValue
+} from '@chakra-ui/react';
 import ChatInterface from './components/ChatInterface';
 import FileManager from './components/FileManager';
 import SearchInterface from './components/SearchInterface';
 import SystemPromptConfig from './components/SystemPromptConfig';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('chat');
+  const [activeTab, setActiveTab] = useState(0);
   const [refreshSearch, setRefreshSearch] = useState(0);
 
   const handleFileUploaded = () => {
@@ -16,43 +28,53 @@ function App() {
     setRefreshSearch(prev => prev + 1);
   };
 
-  return (
-    <div className="App">
-      <header className="bg-primary text-white py-3">
-        <Container>
-          <h1 className="h3 mb-0">社内ナレッジ共有チャットボット - デモ版</h1>
-        </Container>
-      </header>
+  const bgColor = useColorModeValue('gray.50', 'gray.900');
+  const headerBg = useColorModeValue('blue.600', 'blue.800');
 
-      <Container className="mt-4">
-        <Tabs
-          activeKey={activeTab}
-          onSelect={(k) => setActiveTab(k)}
-          className="mb-3"
-        >
-          <Tab eventKey="chat" title="チャット">
-            <ChatInterface />
-          </Tab>
-          <Tab eventKey="files" title="ファイル管理">
-            <FileManager onFileUploaded={handleFileUploaded} />
-          </Tab>
-          <Tab eventKey="search" title="検索">
-            <SearchInterface refreshTrigger={refreshSearch} />
-          </Tab>
-          <Tab eventKey="config" title="設定">
-            <SystemPromptConfig />
-          </Tab>
-        </Tabs>
+  return (
+    <Flex direction="column" minH="100vh" bg={bgColor}>
+      <Box bg={headerBg} color="white" py={4} boxShadow="md">
+        <Container maxW="container.xl">
+          <Heading size="md">社内ナレッジ共有チャットボット - デモ版</Heading>
+        </Container>
+      </Box>
+
+      <Container maxW="container.xl" flex="1" mt={6}>
+        <Box bg="white" borderRadius="lg" boxShadow="sm" p={4}>
+          <Tabs index={activeTab} onChange={setActiveTab} colorScheme="blue">
+            <TabList>
+              <Tab>チャット</Tab>
+              <Tab>ファイル管理</Tab>
+              <Tab>検索</Tab>
+              <Tab>設定</Tab>
+            </TabList>
+
+            <TabPanels>
+              <TabPanel>
+                <ChatInterface />
+              </TabPanel>
+              <TabPanel>
+                <FileManager onFileUploaded={handleFileUploaded} />
+              </TabPanel>
+              <TabPanel>
+                <SearchInterface refreshTrigger={refreshSearch} />
+              </TabPanel>
+              <TabPanel>
+                <SystemPromptConfig />
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
+        </Box>
       </Container>
 
-      <footer className="mt-5 py-3 bg-light text-center">
-        <Container>
-          <p className="mb-0 text-muted">
+      <Box bg="gray.100" py={4} mt={8}>
+        <Container maxW="container.xl">
+          <Text textAlign="center" color="gray.600" fontSize="sm">
             BYK Japan KK チャットボット プロトタイプ v1.0
-          </p>
+          </Text>
         </Container>
-      </footer>
-    </div>
+      </Box>
+    </Flex>
   );
 }
 
