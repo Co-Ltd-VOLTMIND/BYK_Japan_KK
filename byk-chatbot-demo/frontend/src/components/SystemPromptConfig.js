@@ -1,7 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Form, Button, Alert, Card } from 'react-bootstrap';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCog, faSave, faUndo } from '@fortawesome/free-solid-svg-icons';
+import { 
+  Container, 
+  FormControl,
+  FormLabel,
+  Textarea,
+  Button, 
+  Alert,
+  AlertIcon,
+  Card,
+  CardHeader,
+  CardBody,
+  HStack,
+  VStack,
+  useToast,
+  Heading,
+  Text,
+  FormHelperText
+} from '@chakra-ui/react';
+import { SettingsIcon, CheckIcon, RepeatIcon } from '@chakra-ui/icons';
 import { chatAPI } from '../services/api';
 
 const SystemPromptConfig = () => {
@@ -9,6 +25,7 @@ const SystemPromptConfig = () => {
   const [originalPrompt, setOriginalPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const toast = useToast();
 
   useEffect(() => {
     loadCurrentPrompt();
@@ -23,7 +40,7 @@ const SystemPromptConfig = () => {
     } catch (error) {
       console.error('Load error:', error);
       setMessage({ 
-        type: 'danger', 
+        type: 'error', 
         text: 'システムプロンプトの読み込みに失敗しました' 
       });
     }
@@ -34,14 +51,20 @@ const SystemPromptConfig = () => {
     try {
       await chatAPI.updateSystemPrompt(prompt);
       setOriginalPrompt(prompt);
-      setMessage({ 
-        type: 'success', 
-        text: 'システムプロンプトを更新しました' 
+      toast({
+        title: '保存完了',
+        description: 'システムプロンプトを更新しました',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
       });
     } catch (error) {
-      setMessage({ 
-        type: 'danger', 
-        text: 'システムプロンプトの更新に失敗しました' 
+      toast({
+        title: 'エラー',
+        description: 'システムプロンプトの更新に失敗しました',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
       });
     } finally {
       setLoading(false);
@@ -50,66 +73,75 @@ const SystemPromptConfig = () => {
 
   const handleReset = () => {
     setPrompt(originalPrompt);
-    setMessage({ type: 'info', text: '変更をリセットしました' });
+    toast({
+      title: 'リセット完了',
+      description: '変更をリセットしました',
+      status: 'info',
+      duration: 3000,
+      isClosable: true,
+    });
   };
 
   return (
-    <Container className="py-4">
+    <Container maxW="container.lg" py={4}>
       <Card>
-        <Card.Header className="bg-primary text-white">
-          <FontAwesomeIcon icon={faCog} className="me-2" />
-          システムプロンプト設定
-        </Card.Header>
-        <Card.Body>
-          {message.text && (
-            <Alert 
-              variant={message.type} 
-              dismissible 
-              onClose={() => setMessage({ type: '', text: '' })}
-            >
-              {message.text}
-            </Alert>
-          )}
-          
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>
+        <CardHeader bg="blue.500" color="white">
+          <HStack>
+            <SettingsIcon />
+            <Heading size="md">システムプロンプト設定</Heading>
+          </HStack>
+        </CardHeader>
+        <CardBody>
+          <VStack spacing={4} align="stretch">
+            {message.text && (
+              <Alert 
+                status={message.type === 'danger' ? 'error' : message.type}
+                borderRadius="md"
+              >
+                <AlertIcon />
+                {message.text}
+              </Alert>
+            )}
+            
+            <FormControl>
+              <FormLabel>
                 AIアシスタントの振る舞いを定義するシステムプロンプト
-              </Form.Label>
-              <Form.Control
-                as="textarea"
+              </FormLabel>
+              <Textarea
                 rows={15}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="システムプロンプトを入力してください..."
-                style={{ fontFamily: 'monospace' }}
+                fontFamily="monospace"
+                size="sm"
               />
-              <Form.Text className="text-muted">
+              <FormHelperText>
                 このプロンプトがAIの応答の前提となります。
                 文書への参照方法や回答スタイルを指定できます。
-              </Form.Text>
-            </Form.Group>
+              </FormHelperText>
+            </FormControl>
             
-            <div className="d-flex gap-2">
+            <HStack spacing={2}>
               <Button 
-                variant="primary" 
+                colorScheme="blue" 
                 onClick={handleSave}
-                disabled={loading || prompt === originalPrompt}
+                isLoading={loading}
+                isDisabled={prompt === originalPrompt}
+                leftIcon={<CheckIcon />}
               >
-                <FontAwesomeIcon icon={faSave} className="me-2" />
                 保存
               </Button>
               <Button 
-                variant="secondary" 
+                variant="outline" 
                 onClick={handleReset}
-                disabled={prompt === originalPrompt}
+                isDisabled={prompt === originalPrompt}
+                leftIcon={<RepeatIcon />}
               >
-                <FontAwesomeIcon icon={faUndo} className="me-2" />
                 リセット
               </Button>
-            </div>
-          </Form>
-        </Card.Body>
+            </HStack>
+          </VStack>
+        </CardBody>
       </Card>
     </Container>
   );

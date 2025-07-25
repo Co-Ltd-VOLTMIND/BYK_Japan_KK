@@ -1,35 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Button,
-  Form,
+  Box,
   Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  TableContainer,
+  Button,
+  Input,
+  FormControl,
+  FormLabel,
   Alert,
+  AlertIcon,
   Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
   Spinner,
-  Badge
-} from 'react-bootstrap';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faUpload, 
-  faFile, 
-  faTrash, 
-  faTag,
-  faFolder,
-  faFilePdf,
-  faFileWord
-} from '@fortawesome/free-solid-svg-icons';
+  Badge,
+  HStack,
+  VStack,
+  useToast,
+  IconButton,
+  Text,
+  Card,
+  CardHeader,
+  CardBody,
+  Heading,
+  useDisclosure,
+  Textarea
+} from '@chakra-ui/react';
+import { AddIcon, DeleteIcon, AttachmentIcon } from '@chakra-ui/icons';
 import { fileAPI } from '../services/api';
 
 const FileManager = ({ onFileUploaded }) => {
   const [files, setFiles] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-  const [showUploadModal, setShowUploadModal] = useState(false);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const toast = useToast();
   
   // アップロード用state
   const [selectedFile, setSelectedFile] = useState(null);
@@ -69,16 +83,26 @@ const FileManager = ({ onFileUploaded }) => {
     }
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile) return;
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      setError('ファイルを選択してください。');
+      return;
+    }
 
     setUploading(true);
     setError(null);
     
     try {
       await fileAPI.upload(selectedFile, category, tags);
-      setSuccess('ファイルが正常にアップロードされました。');
-      setShowUploadModal(false);
+      toast({
+        title: 'アップロード成功',
+        description: 'ファイルが正常にアップロードされました。',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      onClose();
       resetUploadForm();
       loadFiles();
       if (onFileUploaded) onFileUploaded();
@@ -95,7 +119,13 @@ const FileManager = ({ onFileUploaded }) => {
 
     try {
       await fileAPI.deleteFile(id);
-      setSuccess('ファイルが削除されました。');
+      toast({
+        title: '削除成功',
+        description: 'ファイルが削除されました。',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
       loadFiles();
     } catch (err) {
       setError('ファイルの削除に失敗しました。');
@@ -111,10 +141,7 @@ const FileManager = ({ onFileUploaded }) => {
 
   const getFileIcon = (filename) => {
     const ext = filename.split('.').pop().toLowerCase();
-    if (ext === 'pdf') return faFilePdf;
-    if (['doc', 'docx'].includes(ext)) return faFileWord;
-    if (ext === 'txt') return faFile;
-    return faFile;
+    return ext.toUpperCase();
   };
 
   const formatDate = (dateString) => {
@@ -122,164 +149,151 @@ const FileManager = ({ onFileUploaded }) => {
   };
 
   return (
-    <Container fluid>
+    <Box>
       {error && (
-        <Alert variant="danger" dismissible onClose={() => setError(null)}>
+        <Alert status="error" mb={4}>
+          <AlertIcon />
           {error}
-        </Alert>
-      )}
-      {success && (
-        <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
-          {success}
         </Alert>
       )}
 
       <Card>
-        <Card.Header className="d-flex justify-content-between align-items-center">
-          <h5 className="mb-0">アップロード済みファイル</h5>
-          <Button onClick={() => setShowUploadModal(true)}>
-            <FontAwesomeIcon icon={faUpload} /> ファイルをアップロード
-          </Button>
-        </Card.Header>
-        <Card.Body>
+        <CardHeader>
+          <HStack justify="space-between">
+            <Heading size="md">アップロード済みファイル</Heading>
+            <Button leftIcon={<AddIcon />} colorScheme="blue" onClick={onOpen}>
+              ファイルをアップロード
+            </Button>
+          </HStack>
+        </CardHeader>
+        <CardBody>
           {isLoading ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" />
-              <p className="mt-2">読み込み中...</p>
-            </div>
+            <VStack py={5}>
+              <Spinner />
+              <Text>読み込み中...</Text>
+            </VStack>
           ) : files.length === 0 ? (
-            <div className="text-center py-5">
-              <p className="text-muted">アップロードされたファイルはありません。</p>
-            </div>
+            <Box textAlign="center" py={5}>
+              <Text color="gray.500">アップロードされたファイルはありません。</Text>
+            </Box>
           ) : (
-            <Table responsive hover>
-              <thead>
-                <tr>
-                  <th>ファイル名</th>
-                  <th>カテゴリ</th>
-                  <th>タグ</th>
-                  <th>アップロード日時</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {files.map((file) => (
-                  <tr key={file.id}>
-                    <td>
-                      <FontAwesomeIcon 
-                        icon={getFileIcon(file.filename)} 
-                        className="me-2 text-primary" 
-                      />
-                      {file.filename}
-                    </td>
-                    <td>
-                      {file.category ? (
-                        <Badge bg="info">
-                          <FontAwesomeIcon icon={faFolder} className="me-1" />
-                          {file.category}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted">-</span>
-                      )}
-                    </td>
-                    <td>
-                      {file.tags ? (
-                        file.tags.split(',').map((tag, idx) => (
-                          <Badge key={idx} bg="secondary" className="me-1">
-                            <FontAwesomeIcon icon={faTag} className="me-1" />
-                            {tag.trim()}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-muted">-</span>
-                      )}
-                    </td>
-                    <td>{formatDate(file.uploaded_at)}</td>
-                    <td>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleDelete(file.id, file.filename)}
-                      >
-                        <FontAwesomeIcon icon={faTrash} />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
+            <TableContainer>
+              <Table variant="simple">
+                <Thead>
+                  <Tr>
+                    <Th>ファイル名</Th>
+                    <Th>カテゴリ</Th>
+                    <Th>タグ</Th>
+                    <Th>アップロード日時</Th>
+                    <Th>操作</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {files.map((file) => (
+                    <Tr key={file.id}>
+                      <Td>
+                        <HStack>
+                          <Badge colorScheme="blue">{getFileIcon(file.filename)}</Badge>
+                          <Text>{file.filename}</Text>
+                        </HStack>
+                      </Td>
+                      <Td>
+                        {file.category ? (
+                          <Badge colorScheme="teal">{file.category}</Badge>
+                        ) : (
+                          <Text color="gray.500">-</Text>
+                        )}
+                      </Td>
+                      <Td>
+                        {file.tags ? (
+                          <HStack>
+                            {file.tags.split(',').map((tag, idx) => (
+                              <Badge key={idx} colorScheme="gray">
+                                {tag.trim()}
+                              </Badge>
+                            ))}
+                          </HStack>
+                        ) : (
+                          <Text color="gray.500">-</Text>
+                        )}
+                      </Td>
+                      <Td>{formatDate(file.uploaded_at)}</Td>
+                      <Td>
+                        <IconButton
+                          aria-label="削除"
+                          icon={<DeleteIcon />}
+                          size="sm"
+                          colorScheme="red"
+                          onClick={() => handleDelete(file.id, file.filename)}
+                        />
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </TableContainer>
           )}
-        </Card.Body>
+        </CardBody>
       </Card>
 
       {/* アップロードモーダル */}
-      <Modal show={showUploadModal} onHide={() => setShowUploadModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>ファイルアップロード</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>ファイル選択</Form.Label>
-              <Form.Control
-                type="file"
-                accept=".pdf,.doc,.docx,.txt"
-                onChange={handleFileSelect}
-              />
-              <Form.Text className="text-muted">
-                PDF、Word（.doc, .docx）、テキスト（.txt）ファイルのみ（最大10MB）
-              </Form.Text>
-            </Form.Group>
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>ファイルアップロード</ModalHeader>
+          <ModalCloseButton />
+          <form onSubmit={handleUpload}>
+            <ModalBody>
+              <VStack spacing={4}>
+                <FormControl isRequired>
+                  <FormLabel>ファイル選択</FormLabel>
+                  <Input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.txt"
+                    onChange={handleFileSelect}
+                    pt={1}
+                  />
+                </FormControl>
 
-            <Form.Group className="mb-3">
-              <Form.Label>カテゴリ</Form.Label>
-              <Form.Select 
-                value={category} 
-                onChange={(e) => setCategory(e.target.value)}
+                <FormControl>
+                  <FormLabel>カテゴリ</FormLabel>
+                  <Input
+                    placeholder="例: 人事制度、技術文書"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                  />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>タグ（カンマ区切り）</FormLabel>
+                  <Textarea
+                    placeholder="例: 海外出張, 旅費精算, 規定"
+                    value={tags}
+                    onChange={(e) => setTags(e.target.value)}
+                    rows={3}
+                  />
+                </FormControl>
+              </VStack>
+            </ModalBody>
+
+            <ModalFooter>
+              <Button variant="ghost" mr={3} onClick={onClose}>
+                キャンセル
+              </Button>
+              <Button
+                type="submit"
+                colorScheme="blue"
+                isLoading={uploading}
+                loadingText="アップロード中..."
+                leftIcon={<AttachmentIcon />}
               >
-                <option value="">選択してください</option>
-                <option value="規則・規定">規則・規定</option>
-                <option value="マニュアル">マニュアル</option>
-                <option value="人事制度">人事制度</option>
-                <option value="その他">その他</option>
-              </Form.Select>
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>タグ（カンマ区切り）</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="例: 旅費, 出張"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-              />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowUploadModal(false)}>
-            キャンセル
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleUpload}
-            disabled={!selectedFile || uploading}
-          >
-            {uploading ? (
-              <>
-                <Spinner animation="border" size="sm" className="me-2" />
-                アップロード中...
-              </>
-            ) : (
-              <>
-                <FontAwesomeIcon icon={faUpload} className="me-2" />
                 アップロード
-              </>
-            )}
-          </Button>
-        </Modal.Footer>
+              </Button>
+            </ModalFooter>
+          </form>
+        </ModalContent>
       </Modal>
-    </Container>
+    </Box>
   );
 };
 
