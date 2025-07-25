@@ -15,8 +15,10 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
+    // 日本語ファイル名を正しく処理
+    const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
+    cb(null, uniqueSuffix + '-' + originalName);
   }
 });
 
@@ -45,7 +47,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     const { category, tags } = req.body;
     const filepath = req.file.path;
-    const filename = req.file.originalname;
+    // 日本語ファイル名を正しくデコード
+    const filename = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
 
     // ファイルからテキストを抽出
     let content = '';

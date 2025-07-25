@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -18,6 +18,17 @@ export const chatAPI = {
   
   getHistory: async (userId = 'demo-user') => {
     const response = await api.get(`/chat/history/${userId}`);
+    return response.data;
+  },
+  
+  // システムプロンプト関連のAPI
+  getSystemPrompt: async () => {
+    const response = await api.get('/chat/system-prompt');
+    return response.data;
+  },
+  
+  updateSystemPrompt: async (prompt) => {
+    const response = await api.post('/chat/system-prompt', { prompt });
     return response.data;
   },
 };

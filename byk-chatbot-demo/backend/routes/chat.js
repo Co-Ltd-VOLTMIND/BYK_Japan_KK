@@ -2,13 +2,54 @@ const express = require('express');
 const router = express.Router();
 const OpenAI = require('openai');
 const db = require('../database/db');
+const fs = require('fs').promises;
+const path = require('path');
 
-// OpenAI APIクライアントの初期化
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// チャットエンドポイント
+// デフォルトのシステムプロンプト
+const DEFAULT_SYSTEM_PROMPT = `あなたはBYK Japan KKの社内ナレッジ共有システムのAIアシスタントです。
+
+以下の社内文書の内容を熟知しており、これらの情報を基に質問に答えてください。
+文書を参照する際は、文書名を【】で囲んで明示してください（例：【海外出張旅費規定】）。
+
+回答は以下の点に注意してください：
+- 正確で簡潔な情報提供
+- 関連する文書への適切な参照
+- 必要に応じて具体的な手順や例の提示
+- 不明な点は推測せず、正直に伝える`;
+
+// システムプロンプトの設定を読み込む
+async function loadSystemPrompt() {
+  try {
+    const configPath = path.join(__dirname, '..', 'config', 'system-prompt.txt');
+    const customPrompt = await fs.readFile(configPath, 'utf-8');
+    return customPrompt.trim() || DEFAULT_SYSTEM_PROMPT;
+  } catch (error) {
+    // ファイルが存在しない場合はデフォルトを使用
+    return DEFAULT_SYSTEM_PROMPT;
+  }
+}
+
+// すべてのファイル内容を取得する関数
+async function getAllFilesContent() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT filename, category, tags, content FROM files ORDER BY uploaded_at DESC`,
+      (err, files) => {
+        if (err) {
+          console.error('Error fetching files:', err);
+          resolve([]);
+        } else {
+          resolve(files || []);
+        }
+      }
+    );
+  });
+}
+
 router.post('/message', async (req, res) => {
   try {
     const { question, userId = 'demo-user' } = req.body;
@@ -17,24 +58,40 @@ router.post('/message', async (req, res) => {
       return res.status(400).json({ error: 'Question is required' });
     }
 
-    // 関連ファイルを検索
-    const relatedFiles = await searchRelatedFiles(question);
+    // システムプロンプトを読み込む
+    const baseSystemPrompt = await loadSystemPrompt();
     
-    // コンテキストを構築
-    const context = buildContext(relatedFiles);
+    // すべてのファイルを取得
+    const allFiles = await getAllFilesContent();
 
-    // OpenAI APIを呼び出し
+    // システムプロンプトを構築
+    let systemPrompt = baseSystemPrompt + '\n\n=== アップロードされた社内文書 ===\n';
+
+    allFiles.forEach((file, index) => {
+      systemPrompt += `
+【文書${index + 1}】${file.filename}
+カテゴリ: ${file.category || '未分類'}
+タグ: ${file.tags || 'なし'}
+内容:
+${file.content}
+
+---
+`;
+    });
+
+    if (allFiles.length === 0) {
+      systemPrompt += `
+現在、社内文書はアップロードされていません。
+一般的な知識に基づいて回答します。
+`;
+    }
+
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
-          content: `あなたは社内ナレッジ共有システムのアシスタントです。
-          ユーザーの質問に対して、以下の関連文書を参考にして回答してください。
-          回答は簡潔で分かりやすく、必要に応じて関連文書を案内してください。
-          
-          関連文書の情報:
-          ${context}`
+          content: systemPrompt
         },
         {
           role: 'user',
@@ -50,7 +107,7 @@ router.post('/message', async (req, res) => {
     // チャット履歴を保存
     db.run(
       `INSERT INTO chat_history (user_id, question, answer, related_files) VALUES (?, ?, ?, ?)`,
-      [userId, question, answer, JSON.stringify(relatedFiles)],
+      [userId, question, answer, JSON.stringify(allFiles.map(f => f.filename))],
       (err) => {
         if (err) {
           console.error('Error saving chat history:', err);
@@ -58,11 +115,9 @@ router.post('/message', async (req, res) => {
       }
     );
 
-    // レスポンスを返す
     res.json({
       answer,
-      relatedFiles: relatedFiles.map(file => ({
-        id: file.id,
+      relatedFiles: allFiles.map(file => ({
         filename: file.filename,
         category: file.category
       })),
@@ -71,10 +126,43 @@ router.post('/message', async (req, res) => {
 
   } catch (error) {
     console.error('Chat error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to process chat message',
-      details: error.message 
+      details: error.message
     });
+  }
+});
+
+// システムプロンプトの更新エンドポイント
+router.post('/system-prompt', async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    
+    if (!prompt) {
+      return res.status(400).json({ error: 'Prompt is required' });
+    }
+
+    const configDir = path.join(__dirname, '..', 'config');
+    await fs.mkdir(configDir, { recursive: true });
+    
+    const configPath = path.join(configDir, 'system-prompt.txt');
+    await fs.writeFile(configPath, prompt, 'utf-8');
+    
+    res.json({ message: 'System prompt updated successfully' });
+  } catch (error) {
+    console.error('Error updating system prompt:', error);
+    res.status(500).json({ error: 'Failed to update system prompt' });
+  }
+});
+
+// 現在のシステムプロンプトを取得
+router.get('/system-prompt', async (req, res) => {
+  try {
+    const prompt = await loadSystemPrompt();
+    res.json({ prompt });
+  } catch (error) {
+    console.error('Error loading system prompt:', error);
+    res.status(500).json({ error: 'Failed to load system prompt' });
   }
 });
 
@@ -93,43 +181,5 @@ router.get('/history/:userId', async (req, res) => {
     }
   );
 });
-
-// 関連ファイルを検索する関数
-function searchRelatedFiles(question) {
-  return new Promise((resolve, reject) => {
-    // 簡易的なキーワード検索
-    const keywords = question.split(/\s+/).filter(word => word.length > 2);
-    const searchQuery = keywords.join(' OR ');
-    
-    db.all(
-      `SELECT files.*, snippet(files_fts, -1, '<mark>', '</mark>', '...', 30) as snippet
-       FROM files 
-       JOIN files_fts ON files.id = files_fts.rowid
-       WHERE files_fts MATCH ?
-       ORDER BY rank
-       LIMIT 5`,
-      [searchQuery],
-      (err, rows) => {
-        if (err) {
-          console.error('Search error:', err);
-          resolve([]);
-        } else {
-          resolve(rows || []);
-        }
-      }
-    );
-  });
-}
-
-// コンテキストを構築する関数
-function buildContext(files) {
-  if (!files || files.length === 0) {
-    return '関連する文書は見つかりませんでした。';
-  }
-  
-  return files.map(file => 
-    `ファイル名: ${file.filename}\nカテゴリ: ${file.category || '未分類'}\n内容の一部: ${file.snippet || file.content?.substring(0, 200) || ''}`
-  ).join('\n\n');
-}
 
 module.exports = router; 

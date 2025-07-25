@@ -5,6 +5,7 @@ import { Container, Tab, Tabs } from 'react-bootstrap';
 import ChatInterface from './components/ChatInterface';
 import FileManager from './components/FileManager';
 import SearchInterface from './components/SearchInterface';
+import SystemPromptConfig from './components/SystemPromptConfig';
 
 function App() {
   const [activeTab, setActiveTab] = useState('chat');
@@ -37,6 +38,9 @@ function App() {
           </Tab>
           <Tab eventKey="search" title="検索">
             <SearchInterface refreshTrigger={refreshSearch} />
+          </Tab>
+          <Tab eventKey="config" title="設定">
+            <SystemPromptConfig />
           </Tab>
         </Tabs>
       </Container>
